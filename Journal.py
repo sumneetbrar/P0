@@ -1,6 +1,7 @@
-import csv
 import json
 from datetime import datetime
+import csv
+
 
 class JournalEntry:
     def __init__(self, entry_id, date, title, content, tags=None):
@@ -54,10 +55,12 @@ class JournalManager:
 
     def delete_entry(self, entry_id):
         self.entries = [entry for entry in self.entries if entry.id != entry_id]
+        self._reassign_ids()
 
     def merge_entries(self, entry_ids, new_title, new_content, new_tags=None):
         self.entries = [entry for entry in self.entries if entry.id not in entry_ids]
         self.add_entry(new_title, new_content, new_tags)
+        self._reassign_ids()
 
     def export_entries(self, file_name="exported_entries.txt"):
         with open(file_name, "w") as file:
@@ -70,6 +73,9 @@ class JournalManager:
             "unique_tags": len(set(tag for entry in self.entries for tag in entry.tags))
         }
 
+    def search_by_tag(self, tag):
+        return [entry.to_dict() for entry in self.entries if tag in entry.tags]
+
     def save_to_file(self):
         with open(self.file_path, "w") as file:
             json.dump([entry.to_dict() for entry in self.entries], file)
@@ -79,8 +85,13 @@ class JournalManager:
             with open(self.file_path, "r") as file:
                 data = json.load(file)
                 self.entries = [JournalEntry.from_dict(entry) for entry in data]
+                self._reassign_ids()
         except FileNotFoundError:
             self.entries = []
+
+    def _reassign_ids(self):
+        for index, entry in enumerate(self.entries):
+            entry.id = index + 1
 
 if __name__ == "__main__":
     jm = JournalManager()
@@ -93,7 +104,8 @@ if __name__ == "__main__":
         print("3. View titles of all old entries")
         print("4. Open an old entry")
         print("5. Delete an entry")
-        print("6. Exit")
+        print("6. Search entries by tag")
+        print("7. Exit")
         choice = input("Enter your choice: ")
 
         if choice == "1":
@@ -124,6 +136,15 @@ if __name__ == "__main__":
             jm.save_to_file()
             print("Entry deleted successfully.")
         elif choice == "6":
+            tag = input("Enter the tag to search for: ")
+            results = jm.search_by_tag(tag)
+            if results:
+                print("\nEntries with the specified tag:")
+                for result in results:
+                    print(f"ID: {result['id']}, Title: {result['title']}, Date: {result['date']}")
+            else:
+                print("No entries found with the specified tag.")
+        elif choice == "7":
             print("Exiting... Goodbye!")
             break
         else:
